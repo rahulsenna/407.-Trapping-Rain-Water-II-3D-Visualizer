@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trapping Rain Water II</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;
+  --border:rgba(255,255,255,0.1);--text:#e6edf3;--muted:#8b949e;
+  --accent:#58a6ff;--green:#3fb950;--red:#f85149;--water:#1f6feb;
+  --water2:#79c0ff;--gold:#d29922;--radius:8px;
+  --font-mono:'JetBrains Mono',monospace;--font-ui:'Segoe UI',system-ui,sans-serif;
+}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:var(--font-ui);overflow:hidden}
+canvas{display:block}
+#app{display:flex;flex-direction:column;height:100vh}
+#topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;height:48px;background:var(--surface);
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+#topbar h1{font-size:14px;font-family:var(--font-mono);color:var(--accent);font-weight:700}
+#topbar h1 span{color:var(--muted);font-weight:400}
+.badges{display:flex;gap:8px;align-items:center}
+.badge{padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:var(--font-mono);border:1px solid;background:transparent}
+.badge-blue{border-color:rgba(88,166,255,.3);color:var(--accent)}
+.badge-green{border-color:rgba(63,185,80,.3);color:var(--green)}
+.badge-gold{border-color:rgba(210,153,34,.3);color:var(--gold)}
+#main{display:flex;flex:1;overflow:hidden}
+#canvas-wrap{flex:1;position:relative;overflow:hidden}
+#canvas-wrap canvas{width:100%!important;height:100%!important}
+#left{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+#right{width:210px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.panel{padding:12px;border-bottom:1px solid var(--border)}
+.panel-title{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.panel-title::before{content:'';display:inline-block;width:3px;height:10px;background:var(--accent);border-radius:2px}
+.btn{display:block;width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font-ui);text-align:center;margin-bottom:6px}
+.btn:last-child{margin-bottom:0}
+.btn:hover{background:rgba(88,166,255,.12);border-color:rgba(88,166,255,.4);color:var(--accent)}
+.btn.active{background:rgba(88,166,255,.15);border-color:var(--accent);color:var(--accent)}
+.btn-row{display:flex;gap:6px;margin-bottom:6px}
+.btn-row .btn{flex:1;margin-bottom:0}
+.btn-play{background:rgba(63,185,80,.1);border-color:rgba(63,185,80,.35);color:var(--green)}
+.btn-play:hover{background:rgba(63,185,80,.2)!important;border-color:var(--green)!important;color:var(--green)!important}
+.btn-stop{background:rgba(248,81,73,.08);border-color:rgba(248,81,73,.3);color:var(--red)}
+.btn-stop:hover{background:rgba(248,81,73,.15)!important;border-color:var(--red)!important;color:var(--red)!important}
+.speed-row{display:flex;align-items:center;gap:8px;margin-top:4px}
+.speed-row label{font-size:11px;color:var(--muted);white-space:nowrap}
+input[type=range]{flex:1;-webkit-appearance:none;height:3px;background:rgba(255,255,255,.1);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:var(--accent);border-radius:50%;cursor:pointer}
+.speed-val{font-size:11px;font-family:var(--font-mono);color:var(--accent);min-width:24px;text-align:right}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.toggle-label{font-size:12px;color:var(--text)}
+.toggle{width:32px;height:16px;background:rgba(255,255,255,.1);border-radius:8px;cursor:pointer;position:relative;border:none;outline:none;flex-shrink:0;transition:background .15s}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;width:10px;height:10px;background:#fff;border-radius:50%;top:3px;left:3px;transition:left .15s}
+.toggle.on::after{left:19px}
+.stat-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px}
+.stat-label{color:var(--muted)}
+.stat-val{font-family:var(--font-mono);font-weight:600}
+.stat-val.blue{color:var(--accent)}
+.stat-val.green{color:var(--green)}
+.stat-val.water{color:var(--water2)}
+.big-num{font-size:28px;font-family:var(--font-mono);font-weight:700;color:var(--accent);line-height:1}
+.big-label{font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:.5px}
+.step-box{background:rgba(0,0,0,.25);border-radius:6px;padding:10px;margin-bottom:10px;border:1px solid var(--border)}
+.pq-list{display:flex;flex-direction:column;gap:3px;max-height:140px;overflow-y:auto}
+.pq-item{display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:4px;background:rgba(255,255,255,.03);font-size:11px;font-family:var(--font-mono);color:var(--muted);border:1px solid transparent}
+.pq-item.top{background:rgba(88,166,255,.1);border-color:rgba(88,166,255,.25);color:var(--accent)}
+.pq-item .dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.15);flex-shrink:0}
+.pq-item.top .dot{background:var(--accent)}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin-bottom:5px}
+.swatch{width:13px;height:13px;border-radius:3px;flex-shrink:0}
+textarea{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:11px;padding:7px;resize:none;width:100%;outline:none;transition:border-color .15s}
+textarea:focus{border-color:rgba(88,166,255,.5)}
+#step-desc{
+  position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  background:rgba(22,27,34,.95);border:1px solid var(--border);
+  border-radius:20px;padding:8px 18px;font-size:12px;
+  white-space:nowrap;z-index:10;pointer-events:none;
+  max-width:80%;overflow:hidden;text-overflow:ellipsis;
+}
+.hl{color:var(--accent);font-weight:700}
+.hl-green{color:var(--green);font-weight:700}
+.hl-red{color:var(--red);font-weight:700}
+#progress{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.06)}
+#progress-fill{height:100%;background:var(--accent);width:0%;transition:width .1s}
+#hint{position:absolute;bottom:12px;right:10px;font-size:10px;color:rgba(255,255,255,.2);line-height:1.8;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <h1>407. Trapping Rain Water II <span>— 3D Visualizer</span></h1>
+    <div class="badges">
+      <div class="badge badge-blue">Min-Heap BFS</div>
+      <div class="badge badge-green" id="vol-badge">Vol: ?</div>
+      <div class="badge badge-gold" id="phase-badge">Ready</div>
+    </div>
+  </div>
+  <div id="main">
+    <!-- LEFT -->
+    <div id="left">
+      <div class="panel">
+        <div class="panel-title">Presets</div>
+        <button class="btn active" id="p0"> 5x5 wall with a well inside)</button>
+        <button class="btn" id="p1">Example 1 (3×6, ans=4)</button>
+        <button class="btn" id="p2">Example 2 (5×5, ans=10)</button>
+        <button class="btn" id="p3">Bowl (7×7)</button>
+        <button class="btn" id="p4">Pyramid (5×5)</button>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Custom Map</div>
+        <textarea id="custom-ta" rows="4" placeholder="1,4,3&#10;3,2,4&#10;2,3,1"></textarea>
+        <button class="btn" id="btn-apply" style="margin-top:6px">Apply Custom</button>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Playback</div>
+        <div class="btn-row">
+          <button class="btn btn-play" id="btn-play">▶ Play</button>
+          <button class="btn" id="btn-step">Step ›</button>
+          <button class="btn btn-stop" id="btn-reset">↺</button>
+        </div>
+        <div class="speed-row">
+          <label>Speed</label>
+          <input type="range" id="speed" min="1" max="10" value="4">
+          <span class="speed-val" id="speed-label">4×</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">View</div>
+        <div class="toggle-row"><span class="toggle-label">Water</span><button class="toggle on" id="t-water"></button></div>
+        <div class="toggle-row"><span class="toggle-label">Heights</span><button class="toggle on" id="t-heights"></button></div>
+        <div class="toggle-row"><span class="toggle-label">Animate</span><button class="toggle on" id="t-anim"></button></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Legend</div>
+        <div class="legend-item"><div class="swatch" style="background:#7a5c1e"></div>Terrain</div>
+        <div class="legend-item"><div class="swatch" style="background:#2d7d46"></div>Boundary (initial PQ)</div>
+        <div class="legend-item"><div class="swatch" style="background:#58a6ff"></div>Current (popped from PQ)</div>
+        <div class="legend-item"><div class="swatch" style="background:#f85149"></div>Neighbors explored</div>
+        <div class="legend-item"><div class="swatch" style="background:#1f6feb;opacity:.8"></div>Trapped water</div>
+      </div>
+    </div>
+
+    <!-- 3D CANVAS -->
+    <div id="canvas-wrap">
+      <canvas id="c"></canvas>
+      <div id="step-desc">Press <span class="hl">▶ Play</span> or <span class="hl">Step ›</span> to begin</div>
+      <div id="progress"><div id="progress-fill"></div></div>
+      <div id="hint">Drag · Scroll · Right-drag</div>
+    </div>
+
+    <!-- RIGHT -->
+    <div id="right">
+      <div class="panel">
+        <div class="panel-title">Algorithm State</div>
+        <div class="step-box">
+          <div class="big-num" id="r-step">0</div>
+          <div class="big-label">STEP</div>
+        </div>
+        <div class="stat-row"><span class="stat-label">Phase</span><span class="stat-val blue" id="r-phase">—</span></div>
+        <div class="stat-row"><span class="stat-label">PQ size</span><span class="stat-val" id="r-pq">0</span></div>
+        <div class="stat-row"><span class="stat-label">Visited</span><span class="stat-val" id="r-vis">0</span></div>
+        <div class="stat-row"><span class="stat-label">Total water</span><span class="stat-val water" id="r-water">0</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Current Cell</div>
+        <div class="stat-row"><span class="stat-label">pos (x,y)</span><span class="stat-val green" id="r-pos">—</span></div>
+        <div class="stat-row"><span class="stat-label">height</span><span class="stat-val" id="r-h">—</span></div>
+        <div class="stat-row"><span class="stat-label">water added</span><span class="stat-val water" id="r-wa">—</span></div>
+      </div>
+      <div class="panel" style="flex:1">
+        <div class="panel-title">Min-Heap (top 10)</div>
+        <div class="pq-list" id="pq-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// ALGORITHM: record all steps
+// =====================================================================
+function recordSteps(hm) {
+  const R = hm.length, C = hm[0].length;
+  const steps = [];
+  if (R < 2 || C < 2) return { steps, answer: 0 };
+
+  // Min-heap helpers
+  const heap = [];
+  function hpush(item) {
+    heap.push(item);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (heap[p][0] <= heap[i][0]) break;
+      [heap[p], heap[i]] = [heap[i], heap[p]]; i = p;
+    }
+  }
+  function hpop() {
+    const top = heap[0];
+    const last = heap.pop();
+    if (heap.length > 0) {
+      heap[0] = last; let i = 0;
+      while (true) {
+        let s = i, l = 2*i+1, r = 2*i+2;
+        if (l < heap.length && heap[l][0] < heap[s][0]) s = l;
+        if (r < heap.length && heap[r][0] < heap[s][0]) s = r;
+        if (s === i) break;
+        [heap[i], heap[s]] = [heap[s], heap[i]]; i = s;
+      }
+    }
+    return top;
+  }
+
+  const seen = Array.from({length:R}, () => new Array(C).fill(false));
+  const waterMap = Array.from({length:R}, () => new Array(C).fill(0));
+  const D = [[0,1],[0,-1],[-1,0],[1,0]];
+  let totalWater = 0, visitedCount = 0;
+
+  // Phase 1: boundary
+  const boundary = [];
+  for (let x = 0; x < R; x++) for (let y = 0; y < C; y++) {
+    if (x===0||x===R-1||y===0||y===C-1) {
+      seen[x][y] = true; visitedCount++;
+      hpush([hm[x][y], x, y]);
+      boundary.push([x, y]);
+    }
+  }
+  steps.push({
+    phase: 'init',
+    desc: `Init: push ${boundary.length} boundary cells into min-heap`,
+    current: null, neighbors: [],
+    pqSnap: heap.map(e => ({h:e[0],x:e[1],y:e[2]})),
+    waterMap: waterMap.map(r => r.slice()),
+    totalWater, visitedCount,
+    boundary: boundary.map(b => b.slice()),
+  });
+
+  // Phase 2: BFS
+  while (heap.length > 0) {
+    const [h, x, y] = hpop();
+    const neighbors = [];
+    for (const [dx, dy] of D) {
+      const nx = x+dx, ny = y+dy;
+      if (nx<0||nx>=R||ny<0||ny>=C||seen[nx][ny]) continue;
+      seen[nx][ny] = true; visitedCount++;
+      const ch = hm[nx][ny];
+      const added = Math.max(0, h - ch);
+      totalWater += added;
+      waterMap[nx][ny] += added;
+      hpush([Math.max(h, ch), nx, ny]);
+      neighbors.push({x:nx, y:ny, h:ch, added, pushed: Math.max(h,ch), isWater: added>0});
+    }
+    steps.push({
+      phase: 'process',
+      desc: `Pop h=${h} at (${x},${y}) → ${neighbors.length} neighbor(s)` +
+            (neighbors.some(n=>n.added>0) ? `, +${neighbors.reduce((s,n)=>s+n.added,0)} water` : ''),
+      current: {x, y, h},
+      neighbors,
+      pqSnap: heap.map(e => ({h:e[0],x:e[1],y:e[2]})),
+      waterMap: waterMap.map(r => r.slice()),
+      totalWater, visitedCount,
+      boundary: [],
+    });
+  }
+  steps.push({
+    phase: 'done',
+    desc: `Done! Total water trapped = ${totalWater}`,
+    current: null, neighbors: [],
+    pqSnap: [],
+    waterMap: waterMap.map(r => r.slice()),
+    totalWater, visitedCount,
+    boundary: [],
+  });
+  return { steps, answer: totalWater };
+}
+
+// =====================================================================
+// PRESETS
+// =====================================================================
+const PRESETS = [
+  [[5,5,5,5,5,5,5,5],[5,0,0,0,0,0,0,5],[5,0,0,0,0,0,0,5],[5,0,6,6,6,0,0,5],[5,0,6,0,6,0,0,5],[5,0,6,6,6,0,0,5],[5,0,0,0,0,0,0,5],[5,5,5,5,5,5,5,5]],
+  [[1,4,3,1,3,2],[3,2,1,3,2,4],[2,3,3,2,3,1]],
+  [[3,3,3,3,3],[3,2,2,2,3],[3,2,1,2,3],[3,2,2,2,3],[3,3,3,3,3]],
+  [[5,5,5,5,5,5,5],[5,1,1,1,1,1,5],[5,1,4,4,4,1,5],[5,1,4,1,4,1,5],[5,1,4,4,4,1,5],[5,1,1,1,1,1,5],[5,5,5,5,5,5,5]],
+  [[1,2,3,2,1],[2,1,2,1,2],[3,2,1,2,3],[2,1,2,1,2],[1,2,3,2,1]],
+];
+
+// =====================================================================
+// THREE.JS RENDERER
+// =====================================================================
+const cvs = document.getElementById('c');
+const wrap = document.getElementById('canvas-wrap');
+
+// Simple 3D renderer using raw WebGL via Three.js CDN
+const script = document.createElement('script');
+script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+document.head.appendChild(script);
+
+script.onload = () => {
+  const OCS = document.createElement('script');
+  OCS.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js';
+  document.head.appendChild(OCS);
+  OCS.onload = init3D;
+};
+
+// =====================================================================
+// MAIN
+// =====================================================================
+let state = {
+  hm: PRESETS[0],
+  steps: [],
+  answer: 0,
+  stepIdx: 0,
+  isPlaying: false,
+  playTimer: null,
+  showWater: true,
+  showHeights: true,
+  animWater: true,
+};
+
+function loadMap(hm) {
+  state.hm = hm;
+  const r = recordSteps(hm);
+  state.steps = r.steps;
+  state.answer = r.answer;
+  state.stepIdx = 0;
+  stopPlay();
+  document.getElementById('vol-badge').textContent = 'Vol: ' + r.answer;
+  updateUI();
+  rebuildMeshes();
+}
+
+function stopPlay() {
+  state.isPlaying = false;
+  clearInterval(state.playTimer);
+  state.playTimer = null;
+  const b = document.getElementById('btn-play');
+  b.textContent = '▶ Play'; b.classList.add('btn-play'); b.classList.remove('btn-stop');
+}
+
+function getSpeed() {
+  const s = parseInt(document.getElementById('speed').value, 10);
+  return Math.max(60, Math.round(1200 / s));
+}
+
+function stepForward() {
+  if (state.stepIdx < state.steps.length - 1) { state.stepIdx++; updateUI(); rebuildMeshes(); }
+  else stopPlay();
+}
+
+document.getElementById('btn-play').onclick = function() {
+  if (state.isPlaying) { stopPlay(); return; }
+  if (state.stepIdx >= state.steps.length - 1) state.stepIdx = 0;
+  state.isPlaying = true;
+  this.textContent = '⏸ Pause'; this.classList.remove('btn-play'); this.classList.add('btn-stop');
+  state.playTimer = setInterval(stepForward, getSpeed());
+};
+
+document.getElementById('btn-step').onclick = function() {
+  stopPlay();
+  if (state.stepIdx < state.steps.length - 1) { state.stepIdx++; updateUI(); rebuildMeshes(); }
+};
+
+document.getElementById('btn-reset').onclick = function() {
+  stopPlay(); state.stepIdx = 0; updateUI(); rebuildMeshes();
+};
+
+document.getElementById('speed').oninput = function() {
+  document.getElementById('speed-label').textContent = this.value + '×';
+  if (state.isPlaying) { clearInterval(state.playTimer); state.playTimer = setInterval(stepForward, getSpeed()); }
+};
+
+// Presets
+['p0','p1','p2','p3','p4'].forEach((id, i) => {
+  document.getElementById(id).onclick = function() {
+    document.querySelectorAll('#left .btn[id^="p"]').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    loadMap(PRESETS[i]);
+  };
+});
+
+document.getElementById('btn-apply').onclick = function() {
+  try {
+    const raw = document.getElementById('custom-ta').value.trim();
+    const parsed = raw.split('\n').filter(l=>l.trim()).map(l => l.split(',').map(v => {
+      const n = parseInt(v.trim(), 10);
+      if (isNaN(n) || n < 0) throw 'bad';
+      return n;
+    }));
+    const c0 = parsed[0].length;
+    if (parsed.length < 2 || c0 < 2 || parsed.some(r=>r.length!==c0)) throw 'shape';
+    document.querySelectorAll('#left .btn[id^="p"]').forEach(b => b.classList.remove('active'));
+    loadMap(parsed);
+  } catch(e) {
+    document.getElementById('step-desc').innerHTML = '<span class="hl">Invalid format!</span> Use rows on newlines, values comma-separated';
+  }
+};
+
+// Toggles
+function mkToggle(id, cb) {
+  const el = document.getElementById(id);
+  el.onclick = () => {
+    const on = !el.classList.contains('on');
+    el.classList.toggle('on', on);
+    cb(on);
+  };
+}
+mkToggle('t-water', on => { state.showWater = on; rebuildMeshes(); });
+mkToggle('t-heights', on => { state.showHeights = on; rebuildMeshes(); });
+mkToggle('t-anim', on => { state.animWater = on; });
+
+// ─── UI UPDATE ──────────────────────────────────────────────────────
+function updateUI() {
+  const s = state.steps[state.stepIdx];
+  if (!s) return;
+  document.getElementById('r-step').textContent = state.stepIdx;
+  document.getElementById('r-phase').textContent =
+    s.phase==='init'?'Initialize':s.phase==='done'?'Done ✓':'Process';
+  document.getElementById('r-pq').textContent = s.pqSnap.length;
+  document.getElementById('r-vis').textContent = s.visitedCount;
+  document.getElementById('r-water').textContent = s.totalWater;
+  document.getElementById('progress-fill').style.width =
+    (state.stepIdx / Math.max(state.steps.length-1,1) * 100) + '%';
+  document.getElementById('phase-badge').textContent =
+    s.phase==='init'?'Phase 1':s.phase==='done'?'Done':('Step '+state.stepIdx+'/'+state.steps.length);
+
+  if (s.current) {
+    document.getElementById('r-pos').textContent = `(${s.current.x},${s.current.y})`;
+    document.getElementById('r-h').textContent = s.current.h;
+    const wa = s.neighbors.reduce((acc,n)=>acc+n.added,0);
+    document.getElementById('r-wa').textContent = wa > 0 ? '+'+wa : '0';
+  } else {
+    document.getElementById('r-pos').textContent = '—';
+    document.getElementById('r-h').textContent = '—';
+    document.getElementById('r-wa').textContent = '—';
+  }
+
+  // PQ list
+  const pql = document.getElementById('pq-list');
+  pql.innerHTML = s.pqSnap.slice(0,10).map((e,i) =>
+    `<div class="pq-item ${i===0?'top':''}">
+      <div class="dot"></div>
+      <span>h=${e.h} @ (${e.x},${e.y})</span>
+    </div>`
+  ).join('');
+  if (s.pqSnap.length > 10) pql.innerHTML += `<div class="pq-item"><div class="dot"></div><span>+${s.pqSnap.length-10} more</span></div>`;
+
+  // Description
+  let col = s.phase==='done'?'hl-green':s.phase==='init'?'hl':'hl';
+  document.getElementById('step-desc').innerHTML =
+    `<span class="${col}">${s.phase==='init'?'Init':s.phase==='done'?'Done':'Step '+state.stepIdx}</span>: ${s.desc}`;
+}
+
+// ─── THREE.JS 3D ────────────────────────────────────────────────────
+let THREE_READY = false, renderer, scene, camera, orbit;
+let meshGroup = null;
+let clock, waterMeshes = [];
+
+function init3D() {
+  THREE_READY = true;
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true });
+  renderer.setSize(w, h);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.setClearColor(0x0d1117);
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x0d1117, 0.03);
+
+  camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 200);
+  camera.position.set(8, 12, 14);
+  camera.lookAt(0, 0, 0);
+
+  orbit = new THREE.OrbitControls(camera, renderer.domElement);
+  orbit.enableDamping = true;
+  orbit.dampingFactor = 0.07;
+  orbit.minDistance = 3;
+  orbit.maxDistance = 40;
+  orbit.maxPolarAngle = Math.PI * 0.47;
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0x202838, 2));
+  const sun = new THREE.DirectionalLight(0xfff8e7, 2.5);
+  sun.position.set(10, 18, 12);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
+  sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -20;
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0x3060a0, 0.8);
+  fill.position.set(-8, 5, -8);
+  scene.add(fill);
+
+  // Grid
+  const grid = new THREE.GridHelper(60, 60, 0x1c2330, 0x1c2330);
+  grid.position.y = -0.02;
+  scene.add(grid);
+
+  clock = new THREE.Clock();
+  meshGroup = new THREE.Group();
+  scene.add(meshGroup);
+
+  window.addEventListener('resize', () => {
+    const w2 = wrap.clientWidth, h2 = wrap.clientHeight;
+    camera.aspect = w2/h2;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w2, h2);
+  });
+
+  // Initial build + start
+  loadMap(PRESETS[0]);
+  animate();
+}
+
+function makeMat(hex, rough, metal, emissive, emissInt) {
+  return new THREE.MeshStandardMaterial({
+    color: hex, roughness: rough, metalness: metal,
+    emissive: emissive || 0x000000, emissiveIntensity: emissInt || 0
+  });
+}
+
+function rebuildMeshes() {
+  if (!THREE_READY || !meshGroup) return;
+  // Clear
+  while (meshGroup.children.length > 0) {
+    const c = meshGroup.children[0];
+    if (c.geometry) c.geometry.dispose();
+    if (c.material) { if (Array.isArray(c.material)) c.material.forEach(m=>m.dispose()); else c.material.dispose(); }
+    meshGroup.remove(c);
+  }
+  waterMeshes = [];
+
+  const s = state.steps[state.stepIdx];
+  if (!s) return;
+  const hm = state.hm;
+  const R = hm.length, C = hm[0].length;
+  const ox = -(R-1)/2, oz = -(C-1)/2;
+
+  // Build sets for coloring
+  const isBoundaryInit = s.phase === 'init';
+  const curX = s.current ? s.current.x : -1;
+  const curY = s.current ? s.current.y : -1;
+  const neighSet = new Set((s.neighbors||[]).map(n=>n.x+','+n.y));
+
+  for (let x = 0; x < R; x++) {
+    for (let y = 0; y < C; y++) {
+      const h = hm[x][y];
+      const isBorder = (x===0||x===R-1||y===0||y===C-1);
+      const isCur = (x===curX && y===curY);
+      const isNeigh = neighSet.has(x+','+y);
+
+      // Material selection
+      let mat;
+      if (isCur) mat = makeMat(0x58a6ff, 0.5, 0.2, 0x1040b0, 0.5);
+      else if (isNeigh) mat = makeMat(0xf85149, 0.65, 0.1, 0x600010, 0.4);
+      else if (isBorder) mat = makeMat(0x2d7d46, 0.75, 0.1, 0x0a2a1a, 0.25);
+      else mat = makeMat(0x7a5c1e, 0.85, 0.05);
+
+      // Block
+      const geo = new THREE.BoxGeometry(0.86, h || 0.05, 0.86);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x + ox, (h || 0.05) / 2, y + oz);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      meshGroup.add(mesh);
+
+      // Height label
+      if (state.showHeights) {
+        const c2 = document.createElement('canvas');
+        c2.width = 64; c2.height = 64;
+        const ctx = c2.getContext('2d');
+        ctx.font = 'bold 30px monospace';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = isCur ? '#58a6ff' : isNeigh ? '#f85149' : isBorder ? '#3fb950' : '#c9d1d9';
+        ctx.fillText(String(h), 32, 32);
+        const tex = new THREE.CanvasTexture(c2);
+        const sp = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.75, 0.75),
+          new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, side: THREE.DoubleSide })
+        );
+        sp.position.set(x + ox, h + 0.42, y + oz);
+        sp.rotation.x = -Math.PI / 2;
+        meshGroup.add(sp);
+      }
+
+      // Water
+      if (state.showWater) {
+        const w = s.waterMap[x][y];
+        if (w > 0) {
+          const wh = w * 0.92;
+          const wgeo = new THREE.BoxGeometry(0.86, wh, 0.86);
+          const wmat = new THREE.MeshPhongMaterial({
+            color: 0x1f6feb, transparent: true, opacity: 0.78,
+            specular: 0x79c0ff, shininess: 80, side: THREE.FrontSide
+          });
+          const wm = new THREE.Mesh(wgeo, wmat);
+          wm.position.set(x + ox, h + wh/2, y + oz);
+          wm.renderOrder = 1;
+          meshGroup.add(wm);
+          waterMeshes.push(wm);
+        }
+      }
+    }
+  }
+
+  // Reposition orbit target
+  orbit.target.set(ox + (R-1)/2, 0, oz + (C-1)/2);
+  orbit.update();
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (!THREE_READY) return;
+  orbit.update();
+  const t = clock.getElapsedTime();
+  if (state.animWater) {
+    waterMeshes.forEach((m, i) => {
+      m.material.opacity = 0.65 + 0.13 * Math.sin(t * 2 + i * 0.7);
+      m.position.y += 0.002 * Math.sin(t * 2.5 + i * 0.5);
+      // drift back
+      if (i % 2 === 0) m.position.y -= 0.002 * Math.sin(t * 2.5 + i * 0.5);
+    });
+  }
+  renderer.render(scene, camera);
+}
+</script>
+</body>
+</html>
